@@ -5,6 +5,8 @@ AI.scanner = (function () {
   let lastCode = "", lastAt = 0, onCodeCb = null;
 
   function support() {
+    if (location.protocol === "content:")
+      return "這個檔案是用「檔案管理員/content://」方式開啟,Chrome 不允許這種網址使用相機(網址列也不會出現可授權的圖示)。請改開網站上的網頁版,再從「設定/同步」載入清單檔。";
     if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       return "目前不是 HTTPS 安全連線(或此瀏覽器不支援),不能直接開相機。請改用 https:// 網址,或使用「拍照辨識」/手動輸入。";
     }
@@ -83,6 +85,7 @@ AI.scanner = (function () {
     const msg = support();
     if (msg) throw new Error(msg);
     onCodeCb = onCode;
+    lastCode = ""; lastAt = 0;           // 重新開相機時重置防重複
     try { stream = await openStream(); } catch (e) { throw new Error(explain(e)); }
     track = stream.getVideoTracks()[0];
     const host = document.getElementById("reader");
@@ -110,11 +113,5 @@ AI.scanner = (function () {
     if (box) box.hidden = true;
   }
 
-  async function scanFile(file) {
-    const t = await AI.decoder.decodeFile(file);
-    if (!t) throw new Error("not found");
-    return t;
-  }
-
-  return { start, stop, scanFile, support, isRunning: () => running };
+  return { start, stop, support, isRunning: () => running };
 })();

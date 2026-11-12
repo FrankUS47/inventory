@@ -45,19 +45,6 @@
       $("camHint").textContent = (e && e.message) || "無法開啟相機,請確認已允許瀏覽器使用相機。";
     }
   }
-  async function onFile(ev) {
-    const f = ev.target.files[0];
-    ev.target.value = "";
-    if (!f) return;
-    if (AI.scanner.isRunning()) await toggleCam();
-    AI.ui.result({ status: "idle", message: "辨識中…" });
-    try { doScan(await AI.scanner.scanFile(f)); }
-    catch (e) {
-      const real = e && e.message && e.message !== "not found";
-      AI.ui.result({ status: "error", message: real ? "解碼程式發生錯誤:" + e.message
-        : "照片中沒有辨識到 QR code/條碼。請讓標籤佔畫面約 1/4 以上、對焦清楚、避免反光後再拍。" });
-    }
-  }
 
   // ---------- 模式 ----------
   function applyMode() {
@@ -160,7 +147,6 @@
     }));
 
     $("btnCam").addEventListener("click", toggleCam);
-    $("fileIn").addEventListener("change", onFile);
     $("btnManual").addEventListener("click", () => { doScan($("manual").value); $("manual").value = ""; });
     $("manual").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btnManual").click(); });
     $("filter").addEventListener("input", () => AI.ui.list(cache, $("filter").value));
@@ -208,8 +194,9 @@
     applyMode();
   }
   async function diag() {
-    const el = $("diag"), parts = ["版本 1.4", "安全連線:" + (window.isSecureContext ? "是" : "否(不能直接開相機)"),
+    const el = $("diag"), parts = ["版本 1.5", "安全連線:" + (window.isSecureContext ? "是" : "否(不能直接開相機)"),
       "模式:" + (STANDALONE ? "單檔離線版" : "伺服器版")];
+    if (location.protocol === "content:") parts.push("開啟方式:content://(Chrome 不允許授權相機)");
     el.textContent = parts.join(" ｜ ") + " ｜ 解碼器:載入中…";
     try {
       await AI.decoder.init();
