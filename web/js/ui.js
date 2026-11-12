@@ -19,6 +19,7 @@ AI.ui = (function () {
     },
     result(r) {
       const el = $("result");
+      if (r.status === "idle") { el.className = "card idle"; el.textContent = r.message; return; }
       el.className = "card " + r.status;
       let html = '<div class="tag">' + TAG[r.status] + "</div>";
       if (r.status === "notfound") {

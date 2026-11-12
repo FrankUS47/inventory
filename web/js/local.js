@@ -41,6 +41,11 @@
     setDataset(ds) { load(); st.ds = ds; st.scans = []; index = null; save(); },
     clear() { st = { ds: null, scans: [] }; index = null; save(); },
     clearQueue() { load().scans = []; save(); },
+    // 單檔離線版:資料嵌在 HTML 內;同一份資料(id 相同)保留手機上的進度,新版資料則重置
+    useEmbedded(ds) {
+      load();
+      if (!st.ds || st.ds.id !== ds.id) { st.ds = ds; st.scans = []; index = null; save(); }
+    },
 
     scan(code, who) {
       const s = load();
@@ -67,6 +72,14 @@
       return s.ds ? s.ds.rows.filter((r) => !r.t).map((r) => ({ key: r.k, name: r.n, extras: extras(r) })) : [];
     },
     scans() { return load().scans.slice(); },
+
+    csvFull() {
+      const s = load(), q = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+      const head = ["財產編號", "品名"].concat(s.ds.columns, ["盤點狀態", "盤點時間"]);
+      const lines = [head.map(q).join(",")];
+      s.ds.rows.forEach((r) => lines.push([r.k, r.n].concat(r.x, [r.t ? "已盤點" : "", r.t || ""]).map(q).join(",")));
+      return "\ufeff" + lines.join("\r\n");
+    },
 
     csv() {
       const s = load();

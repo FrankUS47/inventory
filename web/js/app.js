@@ -5,7 +5,8 @@
     get(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
   };
-  let mode = store.get("ai_mode", "online");
+  const STANDALONE = !!window.AI_EMBED;      // 單檔離線版
+  let mode = STANDALONE ? "offline" : store.get("ai_mode", "online");
   let busy = false;
   let fileName = "inventory_result.csv";
 
@@ -42,14 +43,19 @@
     ev.target.value = "";
     if (!f) return;
     if (AI.scanner.isRunning()) await toggleCam();
+    AI.ui.result({ status: "idle", message: "辨識中…" });
     try { doScan(await AI.scanner.scanFile(f)); }
-    catch (e) { AI.ui.result({ status: "error", message: "照片中沒有辨識到 QR code/條碼,請靠近一點、對焦後再拍。" }); }
+    catch (e) {
+      const real = e && e.message && e.message !== "not found";
+      AI.ui.result({ status: "error", message: real ? "解碼程式發生錯誤:" + e.message
+        : "照片中沒有辨識到 QR code/條碼。請讓標籤佔畫面約 1/4 以上、對焦清楚、避免反光後再拍。" });
+    }
   }
 
   // ---------- 模式 ----------
   function applyMode() {
     AI.ui.mode(mode);
-    $("onlineBox").hidden = mode !== "online";
+    $("onlineBox").hidden = STANDALONE || mode !== "online";
     $("offlineBox").hidden = mode !== "offline";
     document.querySelectorAll('input[name="mode"]').forEach((r) => { r.checked = r.value === mode; });
     if (mode === "offline") { refreshOfflineInfo(); AI.ui.stats(AI.local.hasData() ? AI.local.stats() : null); }
@@ -122,9 +128,22 @@
 
     $("btnDownloadData").addEventListener("click", downloadData);
     $("btnSync").addEventListener("click", sync);
+    const stamp = () => AI.nowStr().replace(/[: ]/g, "").replace(/-/g, "");
+    async function exportCsv(text, name) {
+      const file = new File([text], name, { type: "text/csv" });
+      try {
+        if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name }); return; }
+      } catch (e) { if (e && e.name === "AbortError") return; }
+      AI.saveBlob(new Blob([text], { type: "text/csv;charset=utf-8" }), name);
+      AI.ui.msg("已下載 " + name + ",請用檔案管理員/LINE/USB 傳回電腦。");
+    }
     $("btnExportCsv").addEventListener("click", () => {
       if (!AI.local.scans().length) return AI.ui.msg("沒有掃描紀錄可匯出。");
-      AI.saveBlob(new Blob([AI.local.csv()], { type: "text/csv;charset=utf-8" }), "phone_result_" + AI.nowStr().replace(/[: ]/g, "").replace(/-/g, "") + ".csv");
+      exportCsv(AI.local.csv(), "phone_result_" + stamp() + ".csv");
+    });
+    $("btnExportFull").addEventListener("click", () => {
+      if (!AI.local.hasData()) return AI.ui.msg("手機上沒有清單。");
+      exportCsv(AI.local.csvFull(), "inventory_full_" + stamp() + ".csv");
     });
     $("btnClear").addEventListener("click", () => {
       if (confirm("清除手機上的清單與未同步的掃描紀錄?(無法復原)")) { AI.local.clear(); refreshOfflineInfo(); AI.ui.stats(null); }
@@ -136,9 +155,27 @@
       try { AI.saveBlob(await AI.api.blob("/download/result"), fileName); } catch (e) { AI.ui.msg(e.message); }
     });
 
+    if (STANDALONE) {
+      AI.local.useEmbedded(window.AI_EMBED);
+      ["modeBox", "onlineBox", "pinLabel", "btnDownloadData", "btnSync"].forEach((id) => { $(id).hidden = true; });
+      document.querySelector("h1").textContent = "財產盤點(離線版)";
+      document.title = "財產盤點(離線版)";
+    }
     const s = AI.scanner.support();
     if (s) { $("camHint").hidden = false; $("camHint").textContent = s; }
     applyMode();
   }
+  async function diag() {
+    const el = $("diag"), parts = ["版本 1.2", "安全連線:" + (window.isSecureContext ? "是" : "否(不能直接開相機)"),
+      "模式:" + (STANDALONE ? "單檔離線版" : "伺服器版")];
+    el.textContent = parts.join(" ｜ ") + " ｜ 解碼器:載入中…";
+    try {
+      await AI.decoder.init();
+      await ZXingWASM.readBarcodes(new ImageData(8, 8), { formats: ["QRCode"] });   // 實際啟動一次 wasm
+      parts.push("解碼器:就緒" + (AI.decoder.hasNative() ? "(含內建偵測器)" : ""));
+    } catch (e) { parts.push("解碼器:失敗 " + ((e && e.message) || e)); }
+    el.textContent = parts.join(" ｜ ");
+  }
   init();
+  diag();
 })();
