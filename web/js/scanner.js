@@ -1,7 +1,7 @@
 /* 相機即時掃描:getUserMedia 取得影像 → 定時截圖 → AI.decoder 解碼。含對焦、縮放、手電筒。 */
 window.AI = window.AI || {};
 AI.scanner = (function () {
-  let stream = null, track = null, video = null, running = false, busy = false, timer = null;
+  let stream = null, track = null, video = null, running = false, busy = false, timer = null, paused = false;
   let lastCode = "", lastAt = 0, onCodeCb = null;
 
   function support() {
@@ -66,7 +66,7 @@ AI.scanner = (function () {
 
   async function loop() {
     if (!running) return;
-    if (!busy && video.readyState >= 2 && video.videoWidth) {
+    if (!busy && !paused && video.readyState >= 2 && video.videoWidth) {
       busy = true;
       try {
         const c = AI.decoder.drawScaled(video, video.videoWidth, video.videoHeight, 1920);
@@ -85,7 +85,7 @@ AI.scanner = (function () {
     const msg = support();
     if (msg) throw new Error(msg);
     onCodeCb = onCode;
-    lastCode = ""; lastAt = 0;           // 重新開相機時重置防重複
+    lastCode = ""; lastAt = 0; paused = false;   // 重新開相機時重置防重複
     try { stream = await openStream(); } catch (e) { throw new Error(explain(e)); }
     track = stream.getVideoTracks()[0];
     const host = document.getElementById("reader");
@@ -113,5 +113,9 @@ AI.scanner = (function () {
     if (box) box.hidden = true;
   }
 
-  return { start, stop, support, isRunning: () => running };
+  // 暫停:保留畫面但不辨識(等使用者按確認)。繼續時,仍在鏡頭前的同一個碼不會立刻重複觸發。
+  function pause() { paused = true; }
+  function resume() { paused = false; lastAt = Date.now(); }
+
+  return { start, stop, pause, resume, support, isRunning: () => running };
 })();

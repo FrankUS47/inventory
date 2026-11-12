@@ -20,8 +20,8 @@ AI.ui = (function () {
     result(r) {
       const el = $("result");
       if (r.status === "idle") { el.className = "card idle"; el.textContent = r.message; return; }
-      el.className = "card " + r.status;
-      let html = '<div class="tag">' + TAG[r.status] + "</div>";
+      el.className = "card " + r.status + (r.pending ? " pending" : "");
+      let html = '<div class="tag">' + (r.pending ? "請確認:是這個財產嗎?" : TAG[r.status]) + "</div>";
       if (r.status === "notfound") {
         html += '<div class="name">找不到此筆資料</div>' +
           '<div class="meta">掃到的內容:' + esc(r.code) + "</div>" +
@@ -39,6 +39,7 @@ AI.ui = (function () {
         const ex = extrasHtml(r.extras);
         if (ex) html += '<div class="meta">' + ex + "</div>";
         if (r.status === "duplicate") html += '<div class="meta">首次盤點時間:' + esc(r.first_time) + "</div>";
+        else if (r.pending) html += '<div class="meta">尚未記錄,按下「確認盤點」才會寫入清單</div>';
         else html += '<div class="meta">盤點時間:' + esc(r.time) + "</div>";
         if (r.multi > 1) html += '<div class="meta">⚠ 清單中此編號有 ' + r.multi + " 筆,請人工確認</div>";
       }
@@ -59,6 +60,18 @@ AI.ui = (function () {
       $("listInfo").textContent = "未盤點 " + items.length + " 筆" + (f ? "(符合 " + shown.length + " 筆)" : "");
       $("list").innerHTML = shown.slice(0, 500).map((it) =>
         "<li><b>" + esc(it.key) + " " + esc(it.name) + "</b><small>" + extrasHtml(it.extras) + "</small></li>").join("");
+    },
+    actions(list) {
+      const box = $("resultActions");
+      box.innerHTML = "";
+      box.hidden = !list || !list.length;
+      (list || []).forEach((a) => {
+        const b = document.createElement("button");
+        b.textContent = a.label;
+        if (a.cls) b.className = a.cls;
+        b.addEventListener("click", a.fn);
+        box.appendChild(b);
+      });
     },
     msg(t) { $("msg").textContent = t || ""; },
   };

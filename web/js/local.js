@@ -56,6 +56,22 @@
       if (!st.ds || st.ds.id !== ds.id) { st.ds = ds; st.scans = []; index = null; save(); }
     },
 
+    lookup(code, who) {   // 只查詢、不標記已盤點(找不到的會記入待同步,供電腦端留紀錄)
+      const s = load();
+      if (!s.ds) throw new Error("尚未下載清單,請到「設定」先下載");
+      if (!index) buildIndex();
+      let rids = null;
+      for (const k of AI.candidates(code)) { if (index.has(k)) { rids = index.get(k); break; } }
+      if (!rids) {
+        s.scans.push({ code, ts: AI.nowStr(), who: who || "" }); save();
+        return { status: "notfound", code, hint: sciHint(code, s.ds.rows), ...stats() };
+      }
+      const i = rids.find((j) => !s.ds.rows[j].t);
+      const row = s.ds.rows[i === undefined ? rids[0] : i], prev = row.t;
+      return { status: prev ? "duplicate" : "found", pending: !prev, code, key: row.k, name: row.n,
+        extras: extras(row), time: prev, first_time: prev, multi: rids.length, ...stats() };
+    },
+
     scan(code, who) {
       const s = load();
       if (!s.ds) throw new Error("尚未下載清單,請到「設定」先下載");

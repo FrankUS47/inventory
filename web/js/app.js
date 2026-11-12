@@ -16,19 +16,54 @@
   }
 
   // ---------- 掃描 ----------
+  const needConfirm = () => $("needConfirm").checked;
+  function resumeScan() { AI.ui.actions([]); AI.scanner.resume(); }
+
+  // 掃到(或手動輸入)一個碼:預設先查詢並顯示品名,等使用者按「確認盤點」才記錄
   async function doScan(code) {
     code = String(code || "").trim();
     if (!code || busy) return;
     busy = true;
     try {
-      if (mode === "offline" && !AI.local.hasData()) { showInfo(code); return; }   // 還沒載入清單:只顯示掃到的內容
+      if (mode === "offline" && !AI.local.hasData()) { AI.scanner.pause(); showInfo(code); AI.ui.actions([{ label: "繼續掃描", cls: "primary", fn: resumeScan }]); return; }
       const who = $("who").value.trim();
+      if (needConfirm()) {
+        AI.scanner.pause();
+        const r = mode === "offline" ? AI.local.lookup(code, who) : await AI.api.json("/api/scan", { code, who, dry: true });
+        AI.ui.result(r); AI.ui.stats(r); AI.feedback.play(r.status);
+        if (r.status === "found") {
+          AI.ui.actions([
+            { label: "✔ 確認盤點", cls: "ok", fn: () => confirmRecord(r, who) },
+            { label: "取消", fn: () => { AI.ui.result({ status: "idle", message: "已取消,請掃描下一筆" }); resumeScan(); } },
+          ]);
+        } else {
+          AI.ui.history(r);
+          AI.ui.actions([{ label: "繼續掃描", cls: "primary", fn: resumeScan }]);
+        }
+        if (mode === "offline") refreshOfflineInfo();
+        return;
+      }
       const r = mode === "offline" ? AI.local.scan(code, who) : await AI.api.json("/api/scan", { code, who });
       AI.ui.result(r); AI.ui.history(r); AI.ui.stats(r); AI.feedback.play(r.status);
       if (mode === "offline") refreshOfflineInfo();
     } catch (e) {
-      if (e.noBackend) { switchToOffline(); if (!AI.local.hasData()) { showInfo(code); return; } }
+      if (e.noBackend) { switchToOffline(); if (!AI.local.hasData()) { showInfo(code); AI.ui.actions([{ label: "繼續掃描", cls: "primary", fn: resumeScan }]); return; } }
       AI.ui.result({ status: "error", message: e.message }); AI.feedback.play("error");
+      AI.ui.actions([{ label: "繼續掃描", cls: "primary", fn: resumeScan }]);
+    } finally { busy = false; }
+  }
+
+  async function confirmRecord(r, who) {
+    if (busy) return;
+    busy = true;
+    try {
+      const res = mode === "offline" ? AI.local.scan(r.code, who) : await AI.api.json("/api/scan", { code: r.code, who });
+      AI.ui.result(res); AI.ui.history(res); AI.ui.stats(res); AI.feedback.play(res.status);
+      if (mode === "offline") refreshOfflineInfo();
+      resumeScan();
+    } catch (e) {
+      AI.ui.result({ status: "error", message: e.message });
+      AI.ui.actions([{ label: "重試", cls: "ok", fn: () => confirmRecord(r, who) }, { label: "取消", fn: resumeScan }]);
     } finally { busy = false; }
   }
 
@@ -148,6 +183,8 @@
   // ---------- 初始化 ----------
   function init() {
     $("who").value = store.get("ai_who", "");
+    $("needConfirm").checked = store.get("ai_confirm", "1") === "1";
+    $("needConfirm").addEventListener("change", () => store.set("ai_confirm", $("needConfirm").checked ? "1" : "0"));
     $("pin").value = store.get("ai_pin", "");
     AI.api.pin = $("pin").value;
     $("who").addEventListener("change", () => store.set("ai_who", $("who").value.trim()));
@@ -216,7 +253,7 @@
     applyMode();
   }
   async function diag() {
-    const el = $("diag"), parts = ["版本 2.0", "安全連線:" + (window.isSecureContext ? "是" : "否(不能直接開相機)"),
+    const el = $("diag"), parts = ["版本 2.1", "安全連線:" + (window.isSecureContext ? "是" : "否(不能直接開相機)"),
       "模式:" + (STANDALONE ? "單檔離線版" : "伺服器版")];
     parts.push("比對規則:" + (AI.normKey("a-1_2") === "A12" ? "忽略橫線(新)" : "舊版,請更新 matcher.js"));
     if (window.AI_PRESET) parts.push("內建測試清單 " + window.AI_PRESET.rows.length + " 筆");
