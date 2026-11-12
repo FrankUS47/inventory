@@ -73,6 +73,23 @@
     }
   }
 
+  // ---------- 網頁內建清單(web/inventory_data.json,測試用;真正的清單請改用手機載入) ----------
+  async function loadBuiltin(force) {
+    try {
+      const res = await fetch("inventory_data.json", { cache: "no-store" });
+      if (!res.ok) return;
+      const ds = await res.json();
+      if (!ds || !Array.isArray(ds.rows)) return;
+      $("btnLoadBuiltin").hidden = false;
+      ds.id = ds.id || "builtin"; ds.columns = ds.columns || [];
+      ds.downloaded = ds.downloaded || AI.nowStr(); ds.file = (ds.file || "inventory_data.json") + "(網頁內建)";
+      if (!force && AI.local.hasData()) return;      // 手機上已有清單就不覆蓋
+      if (force && AI.local.queueSize() && !confirm("手機上還有未同步的掃描,載入會清掉它們。確定?")) return;
+      AI.local.setDataset(ds);
+      AI.ui.msg("已載入網頁內建清單:" + ds.rows.length + " 筆。"); refreshOfflineInfo();
+    } catch (e) { /* 沒有內建清單檔就略過 */ }
+  }
+
   // ---------- 從手機載入清單檔 ----------
   let pendingCsv = null;
   async function onDataFile(ev) {
@@ -95,7 +112,7 @@
       const ds = AI.importer.build(pendingCsv, Number($("selKey").value), Number($("selName").value));
       if (AI.local.queueSize() && !confirm("手機上還有未同步的掃描,載入新清單會清掉它們。確定?")) return;
       AI.local.setDataset(ds); pendingCsv = null; $("importBox").hidden = true;
-      AI.ui.msg("已載入清單:" + ds.rows.length + " 筆。"); refreshOfflineInfo();
+      AI.ui.msg("已載入清單:" + ds.rows.length + " 筆。" + (ds.warn ? " ⚠ " + ds.warn : "")); refreshOfflineInfo();
     } catch (e) { AI.ui.msg("載入失敗:" + e.message); }
   }
 
@@ -153,6 +170,7 @@
 
     $("btnDownloadData").addEventListener("click", downloadData);
     $("btnLoadFile").addEventListener("click", () => $("dataIn").click());
+    $("btnLoadBuiltin").addEventListener("click", () => loadBuiltin(true));
     $("dataIn").addEventListener("change", onDataFile);
     $("btnImportOk").addEventListener("click", importOk);
     $("btnSync").addEventListener("click", sync);
@@ -189,13 +207,18 @@
       document.querySelector("h1").textContent = "財產盤點(離線版)";
       document.title = "財產盤點(離線版)";
     }
+    if (!STANDALONE && window.AI_PRESET) {      // 內建測試清單:網頁一開就有清單可比對
+      AI.local.useEmbedded(window.AI_PRESET);
+      mode = "offline"; store.set("ai_mode", mode);
+    }
     const s = AI.scanner.support();
     if (s) { $("camHint").hidden = false; $("camHint").textContent = s; }
     applyMode();
   }
   async function diag() {
-    const el = $("diag"), parts = ["版本 1.6", "安全連線:" + (window.isSecureContext ? "是" : "否(不能直接開相機)"),
+    const el = $("diag"), parts = ["版本 1.7", "安全連線:" + (window.isSecureContext ? "是" : "否(不能直接開相機)"),
       "模式:" + (STANDALONE ? "單檔離線版" : "伺服器版")];
+    if (window.AI_PRESET) parts.push("內建測試清單 " + window.AI_PRESET.rows.length + " 筆");
     if (location.protocol === "content:") parts.push("開啟方式:content://(Chrome 不允許授權相機)");
     el.textContent = parts.join(" ｜ ") + " ｜ 解碼器:載入中…";
     try {
@@ -207,4 +230,5 @@
   }
   init();
   diag();
+  loadBuiltin(false);
 })();

@@ -71,6 +71,7 @@
       <div id="offInfo" class="hint"></div>
       <button id="btnDownloadData">① 從後台下載清單到手機</button>
       <button id="btnLoadFile">①' 從手機載入清單檔(.json / .csv)</button>
+      <button id="btnLoadBuiltin" hidden>①'' 載入網頁內建的測試清單</button>
       <input type="file" id="dataIn" accept=".json,.csv,.txt,application/json,text/csv,text/plain" hidden>
       <div id="importBox" hidden>
         <label>編號欄位(掃到的內容要對應哪一欄)<select id="selKey"></select></label>
@@ -96,6 +97,7 @@
 <script src="js/decoder.js"></script>
 <script src="js/scanner.js"></script>
 <script src="js/ui.js"></script>
+<script src="data/preset.js"></script>
 <script src="js/app.js"></script>
 <script>
 /* 若相關程式檔沒載入(例如只複製了 index.html),直接在畫面上說明 */
@@ -103,7 +105,7 @@ setTimeout(function () {
   if (window.AI && AI.scanner && AI.decoder && AI.local) return;
   var r = document.getElementById("result"), d = document.getElementById("diag");
   if (r) { r.className = "card error"; r.innerHTML = "<b>程式檔案沒有載入</b><br>只有 index.html 是不能用的。請把整個 web 資料夾(含 js、vendor 子資料夾)一起放到網站上。"; }
-  if (d) d.textContent = "版本 1.6 ｜ 程式檔案:未載入";
+  if (d) d.textContent = "版本 1.7 ｜ 程式檔案:未載入";
 }, 800);
 </script>
 </body>

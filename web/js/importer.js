@@ -61,7 +61,8 @@ AI.importer = (function () {
       x: extra.map((i) => (r[i] || "").trim()), t: ti >= 0 ? (r[ti] || "").trim() : "",
     })).filter((r) => r.k);
     if (!rows.length) throw new Error("選的編號欄沒有資料");
-    return { id: "csv-" + Date.now(), columns: extra.map((i) => h[i]), rows, file: csv.file, downloaded: AI.nowStr() };
+    const bad = rows.filter((r) => /^\d+(\.\d+)?E\+\d+$/i.test(r.k)).map((r) => r.k);
+    return { warn: bad.length ? "有 " + bad.length + " 筆編號被 Excel 轉成科學記號(" + bad.slice(0, 3).join("、") + "),位數已遺失,這些無法掃描比對,請在原檔把編號欄設為文字格式。" : "", id: "csv-" + Date.now(), columns: extra.map((i) => h[i]), rows, file: csv.file, downloaded: AI.nowStr() };
   }
 
   return { read, build, guessKey, guessName };
