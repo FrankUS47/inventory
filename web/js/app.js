@@ -21,6 +21,7 @@
       AI.ui.result(r); AI.ui.history(r); AI.ui.stats(r); AI.feedback.play(r.status);
       if (mode === "offline") refreshOfflineInfo();
     } catch (e) {
+      if (e.noBackend) switchToOffline();
       AI.ui.result({ status: "error", message: e.message }); AI.feedback.play("error");
     } finally { busy = false; }
   }
@@ -68,9 +69,41 @@
       : "手機上還沒有清單,請先按 ① 下載(需連到後台)。";
     if (i) AI.ui.stats(i);
   }
+  function switchToOffline() {
+    mode = "offline"; store.set("ai_mode", mode); applyMode();
+  }
   async function refreshInfo() {
     try { const i = await AI.api.json("/api/info"); fileName = i.file; AI.ui.stats(i); AI.ui.msg(""); }
-    catch (e) { AI.ui.stats(null); AI.ui.msg(e.message); }
+    catch (e) {
+      if (e.noBackend) { switchToOffline(); AI.ui.msg(e.message); return; }
+      AI.ui.stats(null); AI.ui.msg(e.message);
+    }
+  }
+
+  // ---------- 從手機載入清單檔 ----------
+  let pendingCsv = null;
+  async function onDataFile(ev) {
+    const f = ev.target.files[0];
+    ev.target.value = "";
+    if (!f) return;
+    try {
+      const r = await AI.importer.read(f);
+      if (r.type === "json") { AI.local.setDataset(r.ds); $("importBox").hidden = true; AI.ui.msg("已載入清單:" + r.ds.rows.length + " 筆。"); refreshOfflineInfo(); return; }
+      pendingCsv = r;
+      const opts = r.headers.map((h, i) => '<option value="' + i + '">' + AI.ui.esc(h || "(欄位" + (i + 1) + ")") + "</option>").join("");
+      $("selKey").innerHTML = opts; $("selName").innerHTML = opts;
+      $("selKey").value = AI.importer.guessKey(r.headers); $("selName").value = AI.importer.guessName(r.headers);
+      $("importBox").hidden = false;
+      AI.ui.msg("請確認編號欄與品名欄,再按「載入這份清單」。");
+    } catch (e) { AI.ui.msg("載入失敗:" + e.message); }
+  }
+  function importOk() {
+    try {
+      const ds = AI.importer.build(pendingCsv, Number($("selKey").value), Number($("selName").value));
+      if (AI.local.queueSize() && !confirm("手機上還有未同步的掃描,載入新清單會清掉它們。確定?")) return;
+      AI.local.setDataset(ds); pendingCsv = null; $("importBox").hidden = true;
+      AI.ui.msg("已載入清單:" + ds.rows.length + " 筆。"); refreshOfflineInfo();
+    } catch (e) { AI.ui.msg("載入失敗:" + e.message); }
   }
 
   // ---------- 未盤點 ----------
@@ -127,6 +160,9 @@
     $("filter").addEventListener("input", () => AI.ui.list(cache, $("filter").value));
 
     $("btnDownloadData").addEventListener("click", downloadData);
+    $("btnLoadFile").addEventListener("click", () => $("dataIn").click());
+    $("dataIn").addEventListener("change", onDataFile);
+    $("btnImportOk").addEventListener("click", importOk);
     $("btnSync").addEventListener("click", sync);
     const stamp = () => AI.nowStr().replace(/[: ]/g, "").replace(/-/g, "");
     async function exportCsv(text, name) {
@@ -157,7 +193,7 @@
 
     if (STANDALONE) {
       AI.local.useEmbedded(window.AI_EMBED);
-      ["modeBox", "onlineBox", "pinLabel", "btnDownloadData", "btnSync"].forEach((id) => { $(id).hidden = true; });
+      ["modeBox", "onlineBox", "pinLabel", "btnDownloadData", "btnSync", "btnLoadFile"].forEach((id) => { $(id).hidden = true; });
       document.querySelector("h1").textContent = "財產盤點(離線版)";
       document.title = "財產盤點(離線版)";
     }
@@ -166,7 +202,7 @@
     applyMode();
   }
   async function diag() {
-    const el = $("diag"), parts = ["版本 1.2", "安全連線:" + (window.isSecureContext ? "是" : "否(不能直接開相機)"),
+    const el = $("diag"), parts = ["版本 1.3", "安全連線:" + (window.isSecureContext ? "是" : "否(不能直接開相機)"),
       "模式:" + (STANDALONE ? "單檔離線版" : "伺服器版")];
     el.textContent = parts.join(" ｜ ") + " ｜ 解碼器:載入中…";
     try {

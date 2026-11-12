@@ -15,7 +15,12 @@ AI.api = {
     if (!res.ok) {
       let msg = "後台錯誤 " + res.status;
       try { msg = (await res.json()).error || msg; } catch (e) {}
-      throw new Error(msg);
+      const err = new Error(msg);
+      if (res.status === 404 || res.status === 405 || res.status === 501) {
+        err.noBackend = true;
+        err.message = "這個網頁沒有連到後台(例如放在 GitHub 的網頁)。已切換成離線模式,請到「設定/同步」載入清單檔。";
+      }
+      throw err;
     }
     return res;
   },
