@@ -15,10 +15,12 @@ AI.api = {
     if (!res.ok) {
       let msg = "後台錯誤 " + res.status;
       try { msg = (await res.json()).error || msg; } catch (e) {}
+      if (res.status === 401) msg = "PIN 不正確,請到「設定/同步」輸入正確的 PIN。";
+      else if (res.status >= 500) msg = "後台處理時發生問題,請再掃一次;如果一直發生,請看筆電視窗上的訊息。";
       const err = new Error(msg);
       if (res.status === 404 || res.status === 405 || res.status === 501) {
         err.noBackend = true;
-        err.message = "這個網頁沒有連到後台(例如放在 GitHub 的網頁)。已切換成離線模式,請到「設定/同步」載入清單檔。";
+        err.message = "目前沒有連到後台。改用手機上的清單比對,請到「設定/同步」載入清單檔。";
       }
       throw err;
     }

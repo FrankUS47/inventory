@@ -1,5 +1,5 @@
 /* 條碼解碼:優先用瀏覽器內建 BarcodeDetector(Android Chrome 有),否則用 zxing-wasm(已隨程式附上)。
-   zxing-wasm 對高解析度照片裡的小標籤、模糊、旋轉都比 html5-qrcode 強很多。 */
+   zxing-wasm 對高解析度照片裡的小標籤、模糊、旋轉都比 舊版解碼函式庫 強很多。 */
 window.AI = window.AI || {};
 AI.decoder = (function () {
   const FORMATS = ["QRCode", "Code128", "Code39", "Code93", "EAN-13", "EAN-8", "UPC-A", "UPC-E",
@@ -36,7 +36,7 @@ AI.decoder = (function () {
     return native;
   }
 
-  /** 解碼一張 canvas,回傳文字或 null。hard=true 時用最費力的模式(拍照用)。 */
+  /** 解碼一張 canvas,回傳文字或 null。hard=true 時用最費力的模式(靜態圖片用)。 */
   async function decodeCanvas(canvas, hard) {
     const nd = await getNative();
     if (nd) {

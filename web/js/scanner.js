@@ -8,7 +8,7 @@ AI.scanner = (function () {
     if (location.protocol === "content:")
       return "這個檔案是用「檔案管理員/content://」方式開啟,Chrome 不允許這種網址使用相機(網址列也不會出現可授權的圖示)。請改開網站上的網頁版,再從「設定/同步」載入清單檔。";
     if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      return "目前不是 HTTPS 安全連線(或此瀏覽器不支援),不能直接開相機。請改用 https:// 網址,或使用「拍照辨識」/手動輸入。";
+      return "目前不是 HTTPS 安全連線(或此瀏覽器不支援),不能直接開相機。請改用 https:// 網址,或手動輸入編號。";
     }
     return "";
   }

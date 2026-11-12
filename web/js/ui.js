@@ -3,7 +3,7 @@ window.AI = window.AI || {};
 AI.ui = (function () {
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const TAG = { info: "ℹ 掃到內容(尚未載入清單,僅供測試)", found: "✔ 盤點成功", duplicate: "⚠ 已盤點過", notfound: "✘ 清單中找不到", error: "✘ 發生錯誤" };
+  const TAG = { info: "ℹ 尚未載入清單", found: "✔ 盤點成功", duplicate: "⚠ 已盤點過", notfound: "✘ 查無資料", error: "✘ 無法完成" };
 
   function extrasHtml(ex) {
     return Object.keys(ex || {}).filter((k) => ex[k]).map((k) => esc(k) + ":" + esc(ex[k])).join(" ｜ ");
@@ -23,9 +23,13 @@ AI.ui = (function () {
       el.className = "card " + r.status;
       let html = '<div class="tag">' + TAG[r.status] + "</div>";
       if (r.status === "notfound") {
-        html += '<div class="name">' + esc(r.code) + '</div><div class="meta">找不到這個編號,請確認標籤或另行登記</div>';
+        html += '<div class="name">找不到此筆資料</div>' +
+          '<div class="meta">掃到的內容:' + esc(r.code) + "</div>" +
+          '<div class="meta">這個編號不在財產清單中,請確認標籤是否正確,或另行登記。</div>';
       } else if (r.status === "info") {
-        html += '<div class="name">' + esc(r.code) + '</div><div class="meta">條碼種類:' + esc(r.format || "未知") + "</div>";
+        html += '<div class="name">無法比對</div>' +
+          '<div class="meta">掃到的內容:' + esc(r.code) + (r.format ? "(" + esc(r.format) + ")" : "") + "</div>" +
+          '<div class="meta">手機上還沒有財產清單。請到「設定/同步」載入清單檔後再掃描。</div>';
       } else if (r.status === "error") {
         html += '<div class="meta">' + esc(r.message) + "</div>";
       } else {
