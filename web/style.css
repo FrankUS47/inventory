@@ -48,3 +48,4 @@ ol,ul{padding:0;margin:0;list-style:none}
 #zoomBox input[type=range]{flex:1;padding:0}
 #zoomBox button{flex:0 0 auto}
 select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg);font-size:16px;margin-top:4px}
+.card.info{background:var(--card);border-color:var(--pri)}.card.info .tag{color:var(--pri)}.s-info{color:var(--pri)}

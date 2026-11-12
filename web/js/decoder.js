@@ -4,7 +4,7 @@ window.AI = window.AI || {};
 AI.decoder = (function () {
   const FORMATS = ["QRCode", "Code128", "Code39", "Code93", "EAN-13", "EAN-8", "UPC-A", "UPC-E",
     "ITF", "Codabar", "DataMatrix", "PDF417", "Aztec"];
-  let ready = null, native = null, nativeTried = false;
+  let ready = null, native = null, nativeTried = false, lastFormat = "";
 
   function b64ToBuf(b64) {
     const bin = atob(b64), n = bin.length, u = new Uint8Array(n);
@@ -42,7 +42,7 @@ AI.decoder = (function () {
     if (nd) {
       try {
         const r = await nd.detect(canvas);
-        if (r.length && r[0].rawValue) return r[0].rawValue;
+        if (r.length && r[0].rawValue) { lastFormat = r[0].format || ""; return r[0].rawValue; }
       } catch (e) {}
     }
     await init();
@@ -51,7 +51,8 @@ AI.decoder = (function () {
       formats: FORMATS, tryHarder: !!hard, tryRotate: !!hard, tryInvert: !!hard,
       tryDownscale: true, maxNumberOfSymbols: 1,
     });
-    return r.length ? r[0].text : null;
+    if (r.length) { lastFormat = (r[0].format || "").replace(/^(Micro|rMQR)QRCode$/, "QRCode"); return r[0].text; }
+    return null;
   }
 
   function drawScaled(src, w, h, maxSide) {
@@ -81,5 +82,5 @@ AI.decoder = (function () {
     return null;
   }
 
-  return { init, decodeCanvas, decodeFile, drawScaled, hasNative: () => !!native };
+  return { init, decodeCanvas, decodeFile, drawScaled, hasNative: () => !!native, lastFormat: () => lastFormat };
 })();

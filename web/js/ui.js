@@ -3,7 +3,7 @@ window.AI = window.AI || {};
 AI.ui = (function () {
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const TAG = { found: "✔ 盤點成功", duplicate: "⚠ 已盤點過", notfound: "✘ 清單中找不到", error: "✘ 發生錯誤" };
+  const TAG = { info: "ℹ 掃到內容(尚未載入清單,僅供測試)", found: "✔ 盤點成功", duplicate: "⚠ 已盤點過", notfound: "✘ 清單中找不到", error: "✘ 發生錯誤" };
 
   function extrasHtml(ex) {
     return Object.keys(ex || {}).filter((k) => ex[k]).map((k) => esc(k) + ":" + esc(ex[k])).join(" ｜ ");
@@ -24,6 +24,8 @@ AI.ui = (function () {
       let html = '<div class="tag">' + TAG[r.status] + "</div>";
       if (r.status === "notfound") {
         html += '<div class="name">' + esc(r.code) + '</div><div class="meta">找不到這個編號,請確認標籤或另行登記</div>';
+      } else if (r.status === "info") {
+        html += '<div class="name">' + esc(r.code) + '</div><div class="meta">條碼種類:' + esc(r.format || "未知") + "</div>";
       } else if (r.status === "error") {
         html += '<div class="meta">' + esc(r.message) + "</div>";
       } else {
@@ -41,8 +43,8 @@ AI.ui = (function () {
       const li = document.createElement("li");
       const t = new Date(), p = (n) => String(n).padStart(2, "0");
       li.innerHTML = '<span>' + p(t.getHours()) + ":" + p(t.getMinutes()) + ":" + p(t.getSeconds()) + "</span><b>" +
-        esc(r.status === "notfound" ? r.code : r.name || r.key) + '</b><span class="s-' + r.status + '">' +
-        { found: "成功", duplicate: "重複", notfound: "找不到" }[r.status] + "</span>";
+        esc(r.status === "notfound" || r.status === "info" ? r.code : r.name || r.key) + '</b><span class="s-' + r.status + '">' +
+        { found: "成功", duplicate: "重複", notfound: "找不到", info: "已讀取" }[r.status] + "</span>";
       $("history").prepend(li);
       while ($("history").children.length > 30) $("history").lastChild.remove();
     },

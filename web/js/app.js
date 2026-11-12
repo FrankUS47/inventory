@@ -10,18 +10,24 @@
   let busy = false;
   let fileName = "inventory_result.csv";
 
+  function showInfo(code) {
+    const r = { status: "info", code, format: AI.decoder.lastFormat() };
+    AI.ui.result(r); AI.ui.history(r); AI.feedback.play("found");
+  }
+
   // ---------- 掃描 ----------
   async function doScan(code) {
     code = String(code || "").trim();
     if (!code || busy) return;
     busy = true;
     try {
+      if (mode === "offline" && !AI.local.hasData()) { showInfo(code); return; }   // 還沒載入清單:只顯示掃到的內容
       const who = $("who").value.trim();
       const r = mode === "offline" ? AI.local.scan(code, who) : await AI.api.json("/api/scan", { code, who });
       AI.ui.result(r); AI.ui.history(r); AI.ui.stats(r); AI.feedback.play(r.status);
       if (mode === "offline") refreshOfflineInfo();
     } catch (e) {
-      if (e.noBackend) switchToOffline();
+      if (e.noBackend) { switchToOffline(); if (!AI.local.hasData()) { showInfo(code); return; } }
       AI.ui.result({ status: "error", message: e.message }); AI.feedback.play("error");
     } finally { busy = false; }
   }
@@ -202,7 +208,7 @@
     applyMode();
   }
   async function diag() {
-    const el = $("diag"), parts = ["版本 1.3", "安全連線:" + (window.isSecureContext ? "是" : "否(不能直接開相機)"),
+    const el = $("diag"), parts = ["版本 1.4", "安全連線:" + (window.isSecureContext ? "是" : "否(不能直接開相機)"),
       "模式:" + (STANDALONE ? "單檔離線版" : "伺服器版")];
     el.textContent = parts.join(" ｜ ") + " ｜ 解碼器:載入中…";
     try {
