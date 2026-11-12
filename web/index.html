@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>財產盤點</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>財產盤點</h1>
+  <div id="stats">—</div>
+  <span id="modeBadge" class="badge">連線</span>
+</header>
+
+<nav id="tabs">
+  <button data-tab="scan" class="on">掃描</button>
+  <button data-tab="list">未盤點</button>
+  <button data-tab="set">設定/同步</button>
+</nav>
+
+<main>
+  <section id="tab-scan">
+    <div id="result" class="card idle">請掃描 QR code / 條碼</div>
+    <div id="camHint" class="hint" hidden></div>
+    <div id="reader"></div>
+    <div id="fileReader" hidden></div>
+    <div class="row">
+      <button id="btnCam" class="primary">開啟相機</button>
+      <label class="btn">拍照辨識<input type="file" id="fileIn" accept="image/*" capture="environment" hidden></label>
+    </div>
+    <div class="row">
+      <input id="manual" placeholder="手動輸入財產編號" enterkeyhint="go" autocomplete="off" autocapitalize="characters">
+      <button id="btnManual">查詢</button>
+    </div>
+    <h3>本次紀錄</h3>
+    <ol id="history"></ol>
+  </section>
+
+  <section id="tab-list" hidden>
+    <input id="filter" placeholder="篩選(編號/品名/地點)">
+    <div id="listInfo" class="hint"></div>
+    <ul id="list"></ul>
+  </section>
+
+  <section id="tab-set" hidden>
+    <h3>基本</h3>
+    <label>盤點人(選填)<input id="who" placeholder="姓名"></label>
+    <label>PIN(後台有設定才需要)<input id="pin" type="password" inputmode="numeric" placeholder="PIN"></label>
+
+    <div id="modeBox">
+    <h3>模式</h3>
+    <label class="radio"><input type="radio" name="mode" value="online"> 連線即時(每掃一筆就連後台比對)</label>
+    <label class="radio"><input type="radio" name="mode" value="offline"> 離線(先下載清單到手機,掃完再同步)</label>
+    </div>
+
+    <div id="onlineBox">
+      <h3>後台檔案</h3>
+      <button id="btnDlUncounted">下載「未盤點清單」CSV</button>
+      <button id="btnDlResult">下載完整結果檔</button>
+    </div>
+
+    <div id="offlineBox" hidden>
+      <h3>離線資料</h3>
+      <div id="offInfo" class="hint"></div>
+      <button id="btnDownloadData">① 從後台下載清單到手機</button>
+      <button id="btnSync" class="primary">③ 同步回後台</button>
+      <button id="btnExportCsv">③' 匯出手機結果 CSV(改用傳檔)</button>
+      <button id="btnClear" class="danger">清除手機上的離線資料</button>
+      <div class="hint">② 到現場掃描(可離線)。同步前請勿清除瀏覽器資料或關閉分頁以外的隱私模式。</div>
+    </div>
+    <div id="msg" class="hint"></div>
+  </section>
+</main>
+
+<script src="vendor/html5-qrcode.min.js"></script>
+<script src="js/matcher.js"></script>
+<script src="js/local.js"></script>
+<script src="js/api.js"></script>
+<script src="js/feedback.js"></script>
+<script src="js/scanner.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
