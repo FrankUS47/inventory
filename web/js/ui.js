@@ -25,7 +25,8 @@ AI.ui = (function () {
       if (r.status === "notfound") {
         html += '<div class="name">找不到此筆資料</div>' +
           '<div class="meta">掃到的內容:' + esc(r.code) + "</div>" +
-          '<div class="meta">這個編號不在財產清單中,請確認標籤是否正確,或另行登記。</div>';
+          '<div class="meta">這個編號不在財產清單中,請確認標籤是否正確,或另行登記。</div>' +
+          (r.hint ? '<div class="meta">⚠ 清單中的「' + esc(r.hint) + '」可能就是這一筆,但它已被 Excel 轉成科學記號、位數遺失。請在清單中把它改成 ' + esc(r.code) + "。</div>" : "");
       } else if (r.status === "info") {
         html += '<div class="name">無法比對</div>' +
           '<div class="meta">掃到的內容:' + esc(r.code) + (r.format ? "(" + esc(r.format) + ")" : "") + "</div>" +

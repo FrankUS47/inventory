@@ -216,7 +216,7 @@
     applyMode();
   }
   async function diag() {
-    const el = $("diag"), parts = ["版本 1.7", "安全連線:" + (window.isSecureContext ? "是" : "否(不能直接開相機)"),
+    const el = $("diag"), parts = ["版本 1.9", "安全連線:" + (window.isSecureContext ? "是" : "否(不能直接開相機)"),
       "模式:" + (STANDALONE ? "單檔離線版" : "伺服器版")];
     if (window.AI_PRESET) parts.push("內建測試清單 " + window.AI_PRESET.rows.length + " 筆");
     if (location.protocol === "content:") parts.push("開啟方式:content://(Chrome 不允許授權相機)");

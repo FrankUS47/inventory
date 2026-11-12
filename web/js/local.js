@@ -26,6 +26,15 @@
     const rows = load().ds ? load().ds.rows : [];
     return { total: rows.length, scanned: rows.filter((r) => r.t).length };
   }
+  function sciHint(code, rows) {
+    const d = String(code || "").trim();
+    if (!/^\d+$/.test(d)) return "";
+    for (const r of rows) {
+      const m = /^(\d)\.?(\d*)E\+(\d+)$/i.exec(String(r.k).trim());
+      if (m && d.length === Number(m[3]) + 1 && d.indexOf(m[1] + m[2]) === 0) return r.k;
+    }
+    return "";
+  }
   function extras(r) {
     const o = {}, cols = load().ds.columns;
     cols.forEach((c, i) => { o[c] = r.x[i]; });
@@ -55,7 +64,7 @@
       let rids = null;
       for (const k of AI.candidates(code)) { if (index.has(k)) { rids = index.get(k); break; } }
       s.scans.push({ code, ts: when, who: who || "" });
-      if (!rids) { save(); return { status: "notfound", code, ...stats() }; }
+      if (!rids) { save(); return { status: "notfound", code, hint: sciHint(code, s.ds.rows), ...stats() }; }
       const i = rids.find((j) => !s.ds.rows[j].t);
       const row = s.ds.rows[i === undefined ? rids[0] : i];
       const prev = row.t;

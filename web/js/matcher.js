@@ -4,7 +4,7 @@ window.AI = window.AI || {};
 AI.normKey = function (v) {
   let s = String(v == null ? "" : v).trim();
   if (/^-?\d+\.0+$/.test(s)) s = s.split(".")[0];
-  return s.replace(/\s+/g, "").toUpperCase();
+  return s.replace(/[\s\-_]+/g, "").toUpperCase();
 };
 
 AI.candidates = function (raw) {
