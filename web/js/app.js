@@ -216,8 +216,9 @@
     applyMode();
   }
   async function diag() {
-    const el = $("diag"), parts = ["版本 1.9", "安全連線:" + (window.isSecureContext ? "是" : "否(不能直接開相機)"),
+    const el = $("diag"), parts = ["版本 2.0", "安全連線:" + (window.isSecureContext ? "是" : "否(不能直接開相機)"),
       "模式:" + (STANDALONE ? "單檔離線版" : "伺服器版")];
+    parts.push("比對規則:" + (AI.normKey("a-1_2") === "A12" ? "忽略橫線(新)" : "舊版,請更新 matcher.js"));
     if (window.AI_PRESET) parts.push("內建測試清單 " + window.AI_PRESET.rows.length + " 筆");
     if (location.protocol === "content:") parts.push("開啟方式:content://(Chrome 不允許授權相機)");
     el.textContent = parts.join(" ｜ ") + " ｜ 解碼器:載入中…";
