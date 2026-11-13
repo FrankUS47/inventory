@@ -48,7 +48,7 @@ AI.scanner = (function () {
     } catch (e) {}
     if (caps.zoom) {
       z.min = caps.zoom.min; z.max = caps.zoom.max; z.step = caps.zoom.step || 0.1;
-      z.value = Math.min(caps.zoom.max, Math.max(caps.zoom.min, 2)); // 預設放大 2 倍,小標籤較容易讀
+      z.value = caps.zoom.min;           // 預設不放大(視野較大、較好對準);小標籤可自行拉滑桿
       try { await track.applyConstraints({ advanced: [{ zoom: Number(z.value) }] }); } catch (e) {}
       z.oninput = () => track.applyConstraints({ advanced: [{ zoom: Number(z.value) }] }).catch(() => {});
       z.hidden = false; box.hidden = false;
@@ -64,28 +64,72 @@ AI.scanner = (function () {
     }
   }
 
+  const ONE_D = /(code39|itf|codabar)/i;   // 沒有檢查碼的一般條碼才需要連續兩次讀到相同內容
+  let frames = 0, lastMs = 0, lastRead = "", pending = null, lastVt = -1, lastVtAt = 0, restarting = false;
+
+  function showStatus() {
+    AI.ui.scanStatus(paused
+      ? "⏸ 已暫停:請按上方「確認盤點」或「取消」才會繼續掃描"
+      : "● 辨識中 · 已處理 " + frames + " 張 · " + lastMs + "ms · 最近讀到:" + (lastRead || "(尚無)"));
+  }
+
   async function loop() {
     if (!running) return;
     if (!busy && !paused && video.readyState >= 2 && video.videoWidth) {
       busy = true;
       try {
-        const c = AI.decoder.drawScaled(video, video.videoWidth, video.videoHeight, 1920);
-        const text = await AI.decoder.decodeCanvas(c, false);
+        const t0 = Date.now();
+        const c = AI.decoder.drawScaled(video, video.videoWidth, video.videoHeight, lastMs > 700 ? 1280 : 1920);   // 辨識太慢就降解析度
+        // 解碼最多等 3 秒,避免某一張畫面卡住後整個掃描就停了
+        const text = await Promise.race([
+          AI.decoder.decodeCanvas(c, false),
+          new Promise((res) => setTimeout(() => res(null), 3000)),
+        ]);
+        frames++; lastMs = Date.now() - t0;
         if (text) {
+          lastRead = text;
           const now = Date.now(), same = text === lastCode && now - lastAt < 3000;
           lastCode = text; lastAt = now;       // 相機持續對著同一個碼時不重複送出
-          if (!same && onCodeCb) onCodeCb(text);
+          if (!same) {
+            // 一般條碼(1D)容易誤讀,需連續兩次讀到相同內容才接受;QR code 直接接受
+            const fmt = String(AI.decoder.lastFormat() || "").replace(/[^a-z0-9]/gi, "");
+            if (ONE_D.test(fmt) && !(pending && pending.text === text && now - pending.t < 4000)) {
+              pending = { text, t: now };
+              lastCode = ""; lastAt = 0;           // 還沒確認,不算「已觸發」
+            } else {
+              pending = null;
+              if (onCodeCb) onCodeCb(text);
+            }
+          }
         }
       } catch (e) {} finally { busy = false; }
     }
+    // 相機畫面停住(例如被其他 App 搶走相機)超過 4 秒就自動重新啟動
+    if (!paused && video) {
+      const now = Date.now();
+      if (video.currentTime !== lastVt) { lastVt = video.currentTime; lastVtAt = now; }
+      else if (now - lastVtAt > 4000 && !restarting) { restart(); return; }
+    }
+    showStatus();
     timer = setTimeout(loop, 120);
+  }
+
+  async function restart() {
+    restarting = true;
+    AI.ui.scanStatus("相機畫面停住了,重新啟動中…");
+    const cb = onCodeCb;
+    clearTimeout(timer); running = false;
+    if (stream) stream.getTracks().forEach((t) => t.stop());
+    stream = null;
+    try { await start(cb); } catch (e) { AI.ui.scanStatus("相機無法重新啟動:" + e.message); }
+    restarting = false;
   }
 
   async function start(onCode) {
     const msg = support();
     if (msg) throw new Error(msg);
     onCodeCb = onCode;
-    lastCode = ""; lastAt = 0; paused = false;   // 重新開相機時重置防重複
+    lastCode = ""; lastAt = 0; paused = false; frames = 0; lastRead = ""; pending = null; lastVt = -1; lastVtAt = Date.now();   // 重新開相機時重置
     try { stream = await openStream(); } catch (e) { throw new Error(explain(e)); }
     track = stream.getVideoTracks()[0];
     const host = document.getElementById("reader");
@@ -111,6 +155,7 @@ AI.scanner = (function () {
     if (host) host.innerHTML = "";
     const box = document.getElementById("zoomBox");
     if (box) box.hidden = true;
+    AI.ui.scanStatus("");
   }
 
   // 暫停:保留畫面但不辨識(等使用者按確認)。繼續時,仍在鏡頭前的同一個碼不會立刻重複觸發。

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>財產盤點</title>
-<link rel="stylesheet" href="style.css?v=2.1">
+<link rel="stylesheet" href="style.css?v=2.5">
 </head>
 <body>
 <header>
@@ -24,6 +24,7 @@
   <section id="tab-scan">
     <div id="result" class="card idle">請掃描 QR code / 條碼</div>
     <div id="resultActions" class="row" hidden></div>
+    <div id="scanStatus" class="hint" hidden></div>
     <div id="diag" class="hint">診斷中…</div>
     <div id="camHint" class="hint" hidden></div>
     <div id="reader"></div>
@@ -72,9 +73,9 @@
       <h3>離線資料</h3>
       <div id="offInfo" class="hint"></div>
       <button id="btnDownloadData">① 從後台下載清單到手機</button>
-      <button id="btnLoadFile">①' 從手機載入清單檔(.json / .csv)</button>
+      <button id="btnLoadFile">①' 從手機載入清單檔(.csv)</button>
       <button id="btnLoadBuiltin" hidden>①'' 載入網頁內建的測試清單</button>
-      <input type="file" id="dataIn" accept=".json,.csv,.txt,application/json,text/csv,text/plain" hidden>
+      <input type="file" id="dataIn" accept=".csv,.txt,text/csv,text/plain" hidden>
       <div id="importBox" hidden>
         <label>編號欄位(掃到的內容要對應哪一欄)<select id="selKey"></select></label>
         <label>品名欄位<select id="selName"></select></label>
@@ -90,24 +91,23 @@
   </section>
 </main>
 
-<script src="vendor/zxing_reader.iife.js?v=2.1"></script>
-<script src="js/matcher.js?v=2.1"></script>
-<script src="js/local.js?v=2.1"></script>
-<script src="js/importer.js?v=2.1"></script>
-<script src="js/api.js?v=2.1"></script>
-<script src="js/feedback.js?v=2.1"></script>
-<script src="js/decoder.js?v=2.1"></script>
-<script src="js/scanner.js?v=2.1"></script>
-<script src="js/ui.js?v=2.1"></script>
-<script src="data/preset.js?v=2.1"></script>
-<script src="js/app.js?v=2.1"></script>
+<script src="vendor/zxing_reader.iife.js?v=2.5"></script>
+<script src="js/matcher.js?v=2.5"></script>
+<script src="js/local.js?v=2.5"></script>
+<script src="js/importer.js?v=2.5"></script>
+<script src="js/api.js?v=2.5"></script>
+<script src="js/feedback.js?v=2.5"></script>
+<script src="js/decoder.js?v=2.5"></script>
+<script src="js/scanner.js?v=2.5"></script>
+<script src="js/ui.js?v=2.5"></script>
+<script src="js/app.js?v=2.5"></script>
 <script>
 /* 若相關程式檔沒載入(例如只複製了 index.html),直接在畫面上說明 */
 setTimeout(function () {
   if (window.AI && AI.scanner && AI.decoder && AI.local) return;
   var r = document.getElementById("result"), d = document.getElementById("diag");
   if (r) { r.className = "card error"; r.innerHTML = "<b>程式檔案沒有載入</b><br>只有 index.html 是不能用的。請把整個 web 資料夾(含 js、vendor 子資料夾)一起放到網站上。"; }
-  if (d) d.textContent = "版本 2.1 ｜ 程式檔案:未載入";
+  if (d) d.textContent = "版本 2.5 ｜ 程式檔案:未載入";
 }, 800);
 </script>
 </body>

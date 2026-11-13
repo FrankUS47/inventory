@@ -53,3 +53,6 @@ select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:1
 #resultActions button.ok{flex:2;background:var(--ok);color:#fff;border-color:var(--ok);font-weight:700}
 .card.found.pending{background:var(--card);border-color:var(--pri)}.card.found.pending .tag{color:var(--pri)}
 label.radio input[type=checkbox]{width:auto;margin-right:6px}
+button.pick{display:block;width:100%;text-align:left;margin-top:6px;padding:10px 12px;font-size:15px}
+button.pick small{color:var(--mut);word-break:break-all}
+#scanStatus{font-variant-numeric:tabular-nums}

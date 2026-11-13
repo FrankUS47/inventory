@@ -64,7 +64,7 @@
       for (const k of AI.candidates(code)) { if (index.has(k)) { rids = index.get(k); break; } }
       if (!rids) {
         s.scans.push({ code, ts: AI.nowStr(), who: who || "" }); save();
-        return { status: "notfound", code, hint: sciHint(code, s.ds.rows), ...stats() };
+        return { status: "notfound", code, hint: sciHint(code, s.ds.rows), similar: AI.nearest(code, s.ds.rows, 3), ...stats() };
       }
       const i = rids.find((j) => !s.ds.rows[j].t);
       const row = s.ds.rows[i === undefined ? rids[0] : i], prev = row.t;

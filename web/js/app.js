@@ -20,7 +20,7 @@
   function resumeScan() { AI.ui.actions([]); AI.scanner.resume(); }
 
   // 掃到(或手動輸入)一個碼:預設先查詢並顯示品名,等使用者按「確認盤點」才記錄
-  async function doScan(code) {
+  async function doScan(code, fromCamera) {
     code = String(code || "").trim();
     if (!code || busy) return;
     busy = true;
@@ -30,6 +30,7 @@
       if (needConfirm()) {
         AI.scanner.pause();
         const r = mode === "offline" ? AI.local.lookup(code, who) : await AI.api.json("/api/scan", { code, who, dry: true });
+        if (fromCamera !== false && AI.scanner.isRunning()) r.format = AI.decoder.lastFormat();
         AI.ui.result(r); AI.ui.stats(r); AI.feedback.play(r.status);
         if (r.status === "found") {
           AI.ui.actions([
@@ -73,7 +74,7 @@
     if (AI.scanner.isRunning()) { await AI.scanner.stop(); btn.textContent = "開啟相機"; return; }
     try {
       $("camHint").hidden = true;
-      await AI.scanner.start(doScan);
+      await AI.scanner.start((txt) => doScan(txt, true));
       btn.textContent = "關閉相機";
     } catch (e) {
       $("camHint").hidden = false;
@@ -133,7 +134,6 @@
     if (!f) return;
     try {
       const r = await AI.importer.read(f);
-      if (r.type === "json") { AI.local.setDataset(r.ds); $("importBox").hidden = true; AI.ui.msg("已載入清單:" + r.ds.rows.length + " 筆。"); refreshOfflineInfo(); return; }
       pendingCsv = r;
       const opts = r.headers.map((h, i) => '<option value="' + i + '">' + AI.ui.esc(h || "(欄位" + (i + 1) + ")") + "</option>").join("");
       $("selKey").innerHTML = opts; $("selName").innerHTML = opts;
@@ -200,6 +200,7 @@
       mode = r.value; store.set("ai_mode", mode); applyMode();
     }));
 
+    AI.ui.pickHandler = (key) => { if (!busy) doScan(key, false); };
     $("btnCam").addEventListener("click", toggleCam);
     $("btnManual").addEventListener("click", () => { doScan($("manual").value); $("manual").value = ""; });
     $("manual").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btnManual").click(); });
@@ -244,19 +245,15 @@
       document.querySelector("h1").textContent = "財產盤點(離線版)";
       document.title = "財產盤點(離線版)";
     }
-    if (!STANDALONE && window.AI_PRESET) {      // 內建測試清單:網頁一開就有清單可比對
-      AI.local.useEmbedded(window.AI_PRESET);
-      mode = "offline"; store.set("ai_mode", mode);
-    }
     const s = AI.scanner.support();
     if (s) { $("camHint").hidden = false; $("camHint").textContent = s; }
     applyMode();
   }
   async function diag() {
-    const el = $("diag"), parts = ["版本 2.1", "安全連線:" + (window.isSecureContext ? "是" : "否(不能直接開相機)"),
+    const el = $("diag"), parts = ["版本 2.5", "安全連線:" + (window.isSecureContext ? "是" : "否(不能直接開相機)"),
       "模式:" + (STANDALONE ? "單檔離線版" : "伺服器版")];
     parts.push("比對規則:" + (AI.normKey("a-1_2") === "A12" ? "忽略橫線(新)" : "舊版,請更新 matcher.js"));
-    if (window.AI_PRESET) parts.push("內建測試清單 " + window.AI_PRESET.rows.length + " 筆");
+    if (bundled) parts.push("網頁內建清單 " + bundled.file + " " + bundled.rows.length + " 筆" + (bundled.warn ? " ⚠ " + bundled.warn : ""));
     if (location.protocol === "content:") parts.push("開啟方式:content://(Chrome 不允許授權相機)");
     el.textContent = parts.join(" ｜ ") + " ｜ 解碼器:載入中…";
     try {
@@ -266,7 +263,29 @@
     } catch (e) { parts.push("解碼器:失敗 " + ((e && e.message) || e)); }
     el.textContent = parts.join(" ｜ ");
   }
+  // 沒有後台(例如放在 GitHub 的靜態網頁)時,自動讀取網頁旁的 data/assets.csv;有後台(筆電版)則不使用
+  let bundled = null;
+  async function bootstrap() {
+    if (!STANDALONE) {
+      try { await AI.api.req("/api/info"); }
+      catch (e) {
+        if (e.noBackend) {
+          try {
+            const res = await fetch("data/assets.csv?_=" + Date.now(), { cache: "no-store" });
+            if (res.ok) {
+              const csv = AI.importer.parseBuffer(await res.arrayBuffer(), "assets.csv");
+              bundled = AI.importer.build(csv, AI.importer.guessKey(csv.headers), AI.importer.guessName(csv.headers), "bundled-" + csv.hash);
+              AI.local.useEmbedded(bundled);
+            }
+          } catch (e2) { bundled = null; }
+          mode = "offline"; store.set("ai_mode", mode);
+          applyMode();
+        }
+      }
+    }
+    diag();
+  }
   init();
-  diag();
+  bootstrap();
   loadBuiltin(false);
 })();

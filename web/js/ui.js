@@ -26,6 +26,7 @@ AI.ui = (function () {
         html += '<div class="name">找不到此筆資料</div>' +
           '<div class="meta">掃到的內容:' + esc(r.code) + "</div>" +
           '<div class="meta">這個編號不在財產清單中,請確認標籤是否正確,或另行登記。</div>' +
+          (r.format ? '<div class="meta">條碼種類:' + esc(r.format) + "</div>" : "") +
           (r.hint ? '<div class="meta">⚠ 清單中的「' + esc(r.hint) + '」可能就是這一筆,但它已被 Excel 轉成科學記號、位數遺失。請在清單中把它改成 ' + esc(r.code) + "。</div>" : "");
       } else if (r.status === "info") {
         html += '<div class="name">無法比對</div>' +
@@ -41,10 +42,22 @@ AI.ui = (function () {
         if (r.status === "duplicate") html += '<div class="meta">首次盤點時間:' + esc(r.first_time) + "</div>";
         else if (r.pending) html += '<div class="meta">尚未記錄,按下「確認盤點」才會寫入清單</div>';
         else html += '<div class="meta">盤點時間:' + esc(r.time) + "</div>";
+        if (r.code) html += '<div class="meta">掃到的內容:' + esc(r.code) + "</div>";
         if (r.multi > 1) html += '<div class="meta">⚠ 清單中此編號有 ' + r.multi + " 筆,請人工確認</div>";
       }
+      if (r.status === "notfound" && r.similar && r.similar.length) {
+        html += '<div class="meta" style="margin-top:8px">清單中最接近的編號(可能是掃描誤差或標籤寫法不同):</div>';
+        r.similar.forEach((s, i) => {
+          html += '<button class="pick" data-i="' + i + '">是這筆:' + esc(s.name || "") + "<br><small>" + esc(s.key) + "</small></button>";
+        });
+      }
       el.innerHTML = html;
+      el.querySelectorAll(".pick").forEach((b) => b.addEventListener("click", () => {
+        if (AI.ui.pickHandler) AI.ui.pickHandler(r.similar[Number(b.dataset.i)].key);
+      }));
     },
+    pickHandler: null,
+    scanStatus(t) { const el = $("scanStatus"); if (el) { el.textContent = t || ""; el.hidden = !t; } },
     history(r) {
       const li = document.createElement("li");
       const t = new Date(), p = (n) => String(n).padStart(2, "0");

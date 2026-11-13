@@ -6,6 +6,17 @@ AI.decoder = (function () {
     "ITF", "Codabar", "DataMatrix", "PDF417", "Aztec"];
   let ready = null, native = null, nativeTried = false, lastFormat = "";
 
+  /** 掃到的內容一律轉成字串:有 text 用 text;否則把原始位元組依 UTF-8 → Big5 解碼。去掉空字元與前後空白。 */
+  function toText(res) {
+    let t = res && res.text;
+    if (!t && res && res.bytes && res.bytes.length) {
+      const u8 = new Uint8Array(res.bytes);
+      try { t = new TextDecoder("utf-8", { fatal: true }).decode(u8); }
+      catch (e) { try { t = new TextDecoder("big5").decode(u8); } catch (e2) { t = Array.from(u8).map((b) => String.fromCharCode(b)).join(""); } }
+    }
+    return String(t == null ? "" : t).replace(/\u0000/g, "").trim();
+  }
+
   function b64ToBuf(b64) {
     const bin = atob(b64), n = bin.length, u = new Uint8Array(n);
     for (let i = 0; i < n; i++) u[i] = bin.charCodeAt(i);
@@ -42,7 +53,7 @@ AI.decoder = (function () {
     if (nd) {
       try {
         const r = await nd.detect(canvas);
-        if (r.length && r[0].rawValue) { lastFormat = r[0].format || ""; return r[0].rawValue; }
+        if (r.length && r[0].rawValue) { lastFormat = r[0].format || ""; return String(r[0].rawValue).trim(); }
       } catch (e) {}
     }
     await init();
@@ -51,7 +62,10 @@ AI.decoder = (function () {
       formats: FORMATS, tryHarder: !!hard, tryRotate: !!hard, tryInvert: !!hard,
       tryDownscale: true, maxNumberOfSymbols: 1,
     });
-    if (r.length) { lastFormat = (r[0].format || "").replace(/^(Micro|rMQR)QRCode$/, "QRCode"); return r[0].text; }
+    if (r.length) {
+      lastFormat = (r[0].format || "").replace(/^(Micro|rMQR)QRCode$/, "QRCode");
+      return toText(r[0]);
+    }
     return null;
   }
 
