@@ -25,6 +25,7 @@ AI.scanner = (function () {
 
   async function openStream() {
     const tries = [
+      { video: { facingMode: { ideal: "environment" }, width: { ideal: 2560 }, height: { ideal: 1440 } }, audio: false },
       { video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false },
       { video: { facingMode: "environment" }, audio: false },
       { video: true, audio: false },
@@ -79,13 +80,14 @@ AI.scanner = (function () {
       busy = true;
       try {
         const t0 = Date.now();
-        const c = AI.decoder.drawScaled(video, video.videoWidth, video.videoHeight, lastMs > 700 ? 1280 : 1920);   // 辨識太慢就降解析度
+        const hard = frames % 3 === 2;           // 每 3 張有 1 張用「最費力模式」(旋轉/反白/加強),專門救小標籤、模糊、歪斜
+        const c = AI.decoder.drawScaled(video, video.videoWidth, video.videoHeight, hard ? 2560 : (lastMs > 700 ? 1600 : 1920));
         // 解碼最多等 3 秒,避免某一張畫面卡住後整個掃描就停了
         const text = await Promise.race([
-          AI.decoder.decodeCanvas(c, false),
-          new Promise((res) => setTimeout(() => res(null), 3000)),
+          AI.decoder.decodeCanvas(c, hard),
+          new Promise((res) => setTimeout(() => res(null), hard ? 5000 : 3000)),
         ]);
-        frames++; lastMs = Date.now() - t0;
+        frames++; if (!hard) lastMs = Date.now() - t0;
         if (text) {
           lastRead = text;
           const now = Date.now(), same = text === lastCode && now - lastAt < 3000;
