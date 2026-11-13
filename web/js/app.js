@@ -250,7 +250,7 @@
     applyMode();
   }
   async function diag() {
-    const el = $("diag"), parts = ["版本 2.7", "安全連線:" + (window.isSecureContext ? "是" : "否(不能直接開相機)"),
+    const el = $("diag"), parts = ["版本 2.8", "安全連線:" + (window.isSecureContext ? "是" : "否(不能直接開相機)"),
       "模式:" + (STANDALONE ? "單檔離線版" : "伺服器版")];
     parts.push("比對規則:" + (AI.normKey("a-1_2") === "A12" ? "忽略橫線(新)" : "舊版,請更新 matcher.js"));
     if (bundled) parts.push("網頁內建清單 " + bundled.file + " " + bundled.rows.length + " 筆" + (bundled.warn ? " ⚠ " + bundled.warn : ""));

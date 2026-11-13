@@ -77,6 +77,15 @@ AI.decoder = (function () {
     return c;
   }
 
+  /** 只截取影像中的一個矩形(對準框內),最長邊縮放到 maxSide(小框最多放大 1.5 倍)。 */
+  function drawCrop(src, sx, sy, sw, sh, maxSide) {
+    const s = Math.min(1.5, maxSide / Math.max(sw, sh));
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(sw * s)); c.height = Math.max(1, Math.round(sh * s));
+    c.getContext("2d", { willReadFrequently: true }).drawImage(src, sx, sy, sw, sh, 0, 0, c.width, c.height);
+    return c;
+  }
+
   /** 解碼一張照片檔:先用原解析度(小標籤需要),再試縮小版本。 */
   async function decodeFile(file) {
     let bmp;
@@ -96,5 +105,5 @@ AI.decoder = (function () {
     return null;
   }
 
-  return { init, decodeCanvas, decodeFile, drawScaled, hasNative: () => !!native, lastFormat: () => lastFormat };
+  return { init, decodeCanvas, decodeFile, drawScaled, drawCrop, hasNative: () => !!native, lastFormat: () => lastFormat };
 })();

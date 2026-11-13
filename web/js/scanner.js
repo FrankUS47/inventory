@@ -65,6 +65,56 @@ AI.scanner = (function () {
     }
   }
 
+  // ---- 對準框:只辨識框內的區域(比較快、不會誤讀旁邊的標籤),可拖曳移動、滑桿調大小 ----
+  let aim = { on: true, w: 0.6, shape: "sq", cx: 0.5, cy: 0.5 }, aimEl = null;
+  try { Object.assign(aim, JSON.parse(localStorage.getItem("ai_aim") || "{}")); } catch (e) {}
+  function saveAim() { try { localStorage.setItem("ai_aim", JSON.stringify(aim)); } catch (e) {} }
+  function aimFrac() {            // 框占影像的比例 {w,h}(0~1)
+    const vw = (video && video.videoWidth) || 16, vh = (video && video.videoHeight) || 9;
+    const ratio = aim.shape === "wide" ? 0.4 : 1;
+    let w = aim.w, h = aim.w * ratio * vw / vh;
+    if (h > 1) { w = w / h; h = 1; }
+    return { w, h };
+  }
+  function layoutAim() {
+    if (!aimEl) return;
+    aimEl.hidden = !aim.on;
+    const f = aimFrac();
+    aim.cx = Math.min(1 - f.w / 2, Math.max(f.w / 2, aim.cx)); aim.cy = Math.min(1 - f.h / 2, Math.max(f.h / 2, aim.cy));
+    aimEl.style.width = f.w * 100 + "%"; aimEl.style.height = f.h * 100 + "%";
+    aimEl.style.left = (aim.cx - f.w / 2) * 100 + "%"; aimEl.style.top = (aim.cy - f.h / 2) * 100 + "%";
+  }
+  function setupAim(host) {
+    const box = document.getElementById("aimBox"), size = document.getElementById("aimSize");
+    const shape = document.getElementById("btnAimShape"), on = document.getElementById("btnAimOn");
+    aimEl = document.createElement("div"); aimEl.className = "aim"; host.appendChild(aimEl);
+    box.hidden = false; size.value = Math.round(aim.w * 100);
+    shape.textContent = aim.shape === "wide" ? "長方形(條碼)" : "方形(QR)";
+    on.textContent = aim.on ? "框內辨識:開" : "框內辨識:關";
+    size.oninput = () => { aim.w = Number(size.value) / 100; layoutAim(); saveAim(); };
+    shape.onclick = () => { aim.shape = aim.shape === "sq" ? "wide" : "sq"; shape.textContent = aim.shape === "wide" ? "長方形(條碼)" : "方形(QR)"; layoutAim(); saveAim(); };
+    on.onclick = () => { aim.on = !aim.on; on.textContent = aim.on ? "框內辨識:開" : "框內辨識:關"; layoutAim(); saveAim(); };
+    let drag = null;
+    aimEl.addEventListener("pointerdown", (e) => { drag = { x: e.clientX, y: e.clientY, cx: aim.cx, cy: aim.cy }; aimEl.setPointerCapture(e.pointerId); e.preventDefault(); });
+    aimEl.addEventListener("pointermove", (e) => {
+      if (!drag) return;
+      const r = host.getBoundingClientRect();
+      aim.cx = drag.cx + (e.clientX - drag.x) / r.width; aim.cy = drag.cy + (e.clientY - drag.y) / r.height;
+      layoutAim();
+    });
+    const end = () => { if (drag) { drag = null; saveAim(); } };
+    aimEl.addEventListener("pointerup", end); aimEl.addEventListener("pointercancel", end);
+    video.addEventListener("loadedmetadata", layoutAim);
+    layoutAim();
+  }
+  function grab(maxSide) {        // 取要辨識的畫面:框內(開)或整張
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if (!aim.on) return AI.decoder.drawScaled(video, vw, vh, maxSide);
+    const f = aimFrac(), sw = f.w * vw, sh = f.h * vh;
+    const sx = Math.max(0, Math.min(vw - sw, aim.cx * vw - sw / 2)), sy = Math.max(0, Math.min(vh - sh, aim.cy * vh - sh / 2));
+    return AI.decoder.drawCrop(video, sx, sy, sw, sh, maxSide);
+  }
+
   const ONE_D = /(code39|itf|codabar)/i;   // 沒有檢查碼的一般條碼才需要連續兩次讀到相同內容
   let frames = 0, lastMs = 0, lastRead = "", pending = null, lastVt = -1, lastVtAt = 0, restarting = false;
 
@@ -81,7 +131,7 @@ AI.scanner = (function () {
       try {
         const t0 = Date.now();
         const hard = frames % 3 === 2;           // 每 3 張有 1 張用「最費力模式」(旋轉/反白/加強),專門救小標籤、模糊、歪斜
-        const c = AI.decoder.drawScaled(video, video.videoWidth, video.videoHeight, hard ? 2560 : (lastMs > 700 ? 1600 : 1920));
+        const c = grab(hard ? 2560 : (lastMs > 700 ? 1600 : 1920));
         // 解碼最多等 3 秒,避免某一張畫面卡住後整個掃描就停了
         const text = await Promise.race([
           AI.decoder.decodeCanvas(c, hard),
@@ -140,6 +190,7 @@ AI.scanner = (function () {
     video.setAttribute("playsinline", ""); video.muted = true; video.autoplay = true;
     video.style.width = "100%";
     host.appendChild(video);
+    setupAim(host);
     video.srcObject = stream;
     try { await video.play(); } catch (e) {}
     await setupControls();
@@ -157,6 +208,9 @@ AI.scanner = (function () {
     if (host) host.innerHTML = "";
     const box = document.getElementById("zoomBox");
     if (box) box.hidden = true;
+    const ab = document.getElementById("aimBox");
+    if (ab) ab.hidden = true;
+    aimEl = null;
     AI.ui.scanStatus("");
   }
 
